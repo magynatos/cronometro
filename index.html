@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cronômetro de Estudos</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; display: flex; justify-content: center; }
+        #container { text-align: center; }
+        #timer { font-size: 2em; margin: 20px; }
+        #current-subject { font-size: 1.5em; margin: 20px; }
+        #subjects-list { margin-left: 50px; text-align: left; }
+        ul { list-style-type: none; padding: 0; }
+        li { font-size: 1.2em; margin: 5px 0; padding: 5px; }
+        .completed { background-color: lightgreen; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>Cronômetro de Estudos</h1>
+        <label for="study-hours">Horas: </label>
+        <input type="number" id="study-hours" min="0" value="1"> 
+        <label for="study-minutes">Minutos: </label>
+        <input type="number" id="study-minutes" min="0" max="59" value="0">
+        <label for="study-seconds">Segundos: </label>
+        <input type="number" id="study-seconds" min="0" max="59" value="0">
+        <button onclick="setTime()">Definir Tempo</button>
+        <div id="current-subject"></div>
+        <div id="timer">00:00:00</div>
+        <button onclick="startTimer()">Iniciar</button>
+        <button onclick="pauseTimer()">Pausar</button>
+        <button onclick="resetTimer()">Reiniciar</button>
+        <button onclick="nextSubject()">Próxima Matéria</button>
+    </div>
+    
+    <div id="subjects-list">
+        <h2>Matérias</h2>
+        <ul id="subjects-ul">
+            <li>Português</li>
+            <li>Matemática e Raciocínio Lógico</li>
+            <li>Legislação Institucional</li>
+            <li>Noções de Informática</li>
+            <li>Noções de Direito Constitucional</li>
+            <li>Noções de Direito Administrativo</li>
+            <li>Noções de Administração Pública</li>
+        </ul>
+    </div>
+    
+    <script>
+        const subjects = [
+            "Português", "Matemática e Raciocínio Lógico", "Legislação Institucional", "Noções de Informática", 
+            "Noções de Direito Constitucional", "Noções de Direito Administrativo", "Noções de Administração Pública"
+        ];
+        let currentSubjectIndex = 0;
+        let timeLeft = 3600;
+        let timer;
+        let isPaused = false;
+        let notificationPermissionGranted = false;
+
+        // Solicitar permissão para notificações quando a página carregar
+        document.addEventListener('DOMContentLoaded', () => {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    notificationPermissionGranted = permission === 'granted';
+                });
+            }
+            updateDisplay();
+        });
+
+        function updateDisplay() {
+            const hours = Math.floor(timeLeft / 3600).toString().padStart(2, '0');
+            const minutes = Math.floor((timeLeft % 3600) / 60).toString().padStart(2, '0');
+            const seconds = (timeLeft % 60).toString().padStart(2, '0');
+            document.getElementById("timer").textContent = `${hours}:${minutes}:${seconds}`;
+            document.getElementById("current-subject").textContent = `Matéria Atual: ${subjects[currentSubjectIndex]}`;
+        }
+
+        function startTimer() {
+            if (timer) clearInterval(timer);
+            isPaused = false;
+            timer = setInterval(() => {
+                if (!isPaused && timeLeft > 0) {
+                    timeLeft--;
+                    updateDisplay();
+                } else if (timeLeft === 0) {
+                    clearInterval(timer);
+                    markAsCompleted();
+                    showNotification(); // Mostra a notificação
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            isPaused = !isPaused;
+        }
+
+        function resetTimer() {
+            clearInterval(timer);
+            timeLeft = getTimeFromInputs();
+            document.querySelectorAll("#subjects-ul li").forEach(li => li.classList.remove("completed"));
+            currentSubjectIndex = 0;
+            updateDisplay();
+        }
+
+        function nextSubject() {
+            if (timeLeft > 0) return; // Não deixa mudar de matéria antes de acabar
+            markAsCompleted();
+            currentSubjectIndex++;
+            if (currentSubjectIndex >= subjects.length) {
+                currentSubjectIndex = 0;
+                document.querySelectorAll("#subjects-ul li").forEach(li => li.classList.remove("completed"));
+            }
+            timeLeft = getTimeFromInputs();
+            updateDisplay();
+            startTimer(); // Inicia o cronômetro para a próxima matéria
+        }
+
+        function setTime() {
+            timeLeft = getTimeFromInputs();
+            updateDisplay();
+        }
+
+        function getTimeFromInputs() {
+            const hours = parseInt(document.getElementById("study-hours").value) || 0;
+            const minutes = parseInt(document.getElementById("study-minutes").value) || 0;
+            const seconds = parseInt(document.getElementById("study-seconds").value) || 0;
+            return (hours * 3600) + (minutes * 60) + seconds;
+        }
+
+        function markAsCompleted() {
+            document.querySelectorAll("#subjects-ul li")[currentSubjectIndex].classList.add("completed");
+        }
+
+        function showNotification() {
+            // Tenta usar a API de Notificações primeiro
+            if ('Notification' in window && notificationPermissionGranted) {
+                const notification = new Notification('Tempo Esgotado!', {
+                    body: `A matéria "${subjects[currentSubjectIndex]}" acabou! Hora de começar a próxima.`,
+                    icon: 'https://cdn-icons-png.flaticon.com/512/3176/3176272.png'
+                });
+                
+                notification.onclick = () => {
+                    window.focus();
+                    notification.close();
+                };
+            } 
+            // Fallback para alert() se notificações não forem suportadas ou permitidas
+            else {
+                if (confirm(`A matéria "${subjects[currentSubjectIndex]}" acabou! Hora de começar a próxima.\n\nClique em OK para continuar.`)) {
+                    window.focus();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
